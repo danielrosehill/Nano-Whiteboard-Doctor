@@ -4,6 +4,7 @@ A desktop GUI tool that transforms messy whiteboard photos into clean, polished 
 
 ![Python](https://img.shields.io/badge/python-3.10+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
+![PyQt6](https://img.shields.io/badge/GUI-PyQt6-41cd52)
 
 ## What It Does
 
@@ -14,25 +15,29 @@ Take a photo of your messy whiteboard and Nano Whiteboard Doctor will:
 
 Supports **single image** or **batch processing** of multiple whiteboard photos at once.
 
-## Setup
+## Install
 
-### 1. Install dependencies
+### Option A: Debian package (.deb)
 
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Get a Fal AI API key
-
-Sign up at [fal.ai](https://fal.ai) and grab your API key from the dashboard.
-
-### 3. Run
+Download the `.deb` from [Releases](https://github.com/danielrosehill/Nano-Whiteboard-Doctor/releases) and install:
 
 ```bash
-python app.py
+sudo dpkg -i nano-whiteboard-doctor_0.1.0_all.deb
+nano-whiteboard-doctor
 ```
 
-On first run, you'll be prompted to enter your Fal API key. It's saved locally in `~/.config/nano-whiteboard-doctor/config.json` for future use.
+### Option B: Run from source with uv
+
+```bash
+git clone https://github.com/danielrosehill/Nano-Whiteboard-Doctor.git
+cd Nano-Whiteboard-Doctor
+uv sync
+uv run nano-whiteboard-doctor
+```
+
+### Get a Fal AI API key
+
+Sign up at [fal.ai](https://fal.ai) and grab your API key from the dashboard. On first run, you'll be prompted to enter it. The key is saved locally in `~/.config/nano-whiteboard-doctor/config.json`.
 
 ## Usage
 
@@ -46,6 +51,14 @@ On first run, you'll be prompted to enter your Fal API key. It's saved locally i
 - **API Key**: Stored in `~/.config/nano-whiteboard-doctor/config.json`
 - **Output Format**: PNG (default), JPEG, or WebP
 - **Resolution**: 0.5K, 1K (default), 2K, or 4K
+
+## Building the .deb
+
+```bash
+./build-deb.sh
+```
+
+Requires `uv`, `dpkg-deb`, and `fakeroot`.
 
 ## License
 

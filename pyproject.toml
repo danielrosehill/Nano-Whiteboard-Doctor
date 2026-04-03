@@ -1,0 +1,19 @@
+[project]
+name = "nano-whiteboard-doctor"
+version = "0.1.0"
+description = "Desktop GUI tool that cleans up whiteboard photos using Fal AI Nano Banana 2"
+authors = [{ name = "Daniel Rosehill", email = "public@danielrosehill.com" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31.0",
+    "pyqt6>=6.11.0",
+]
+
+[project.scripts]
+nano-whiteboard-doctor = "nano_whiteboard_doctor.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
