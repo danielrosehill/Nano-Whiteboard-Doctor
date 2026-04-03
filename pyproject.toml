@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-nano-whiteboard-doctor = "nano_whiteboard_doctor.app:main"
+nano-whiteboard-doctor = "nano_whiteboard_doctor.cli:cli_main"
 
 [build-system]
 requires = ["hatchling"]

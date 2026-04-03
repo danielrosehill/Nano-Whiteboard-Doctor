@@ -17,18 +17,18 @@ mkdir -p "${BUILD_DIR}/usr/bin"
 mkdir -p "${BUILD_DIR}/usr/share/applications"
 mkdir -p "${BUILD_DIR}/DEBIAN"
 
-# Create a self-contained venv with uv
+# Create a self-contained venv and install the package into it
 uv venv "${BUILD_DIR}/${INSTALL_PREFIX}/venv" --python python3
-uv pip install --python "${BUILD_DIR}/${INSTALL_PREFIX}/venv/bin/python" \
-    requests pyqt6
+uv pip install --python "${BUILD_DIR}/${INSTALL_PREFIX}/venv/bin/python" .
 
-# Copy application code
-cp -r src/nano_whiteboard_doctor "${BUILD_DIR}/${INSTALL_PREFIX}/"
+# Fix shebangs that point to the temp build dir
+find "${BUILD_DIR}/${INSTALL_PREFIX}/venv/bin" -type f -exec \
+    sed -i "s|#!${BUILD_DIR}/|#!/|g" {} +
 
 # Create launcher script
 cat > "${BUILD_DIR}/usr/bin/${PKG_NAME}" << 'LAUNCHER'
 #!/usr/bin/env bash
-exec /opt/nano-whiteboard-doctor/venv/bin/python -m nano_whiteboard_doctor.app "$@"
+exec /opt/nano-whiteboard-doctor/venv/bin/python -m nano_whiteboard_doctor "$@"
 LAUNCHER
 chmod 755 "${BUILD_DIR}/usr/bin/${PKG_NAME}"
 
