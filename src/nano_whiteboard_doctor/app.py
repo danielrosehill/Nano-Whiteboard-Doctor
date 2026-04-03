@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 import requests
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt6.QtGui import QAction
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QMimeData
+from PyQt6.QtGui import QAction, QDragEnterEvent, QDropEvent
 from PyQt6.QtWidgets import (
     QApplication, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
     QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget,
@@ -19,6 +19,8 @@ from PyQt6.QtWidgets import (
 CONFIG_DIR = Path.home() / ".config" / "nano-whiteboard-doctor"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+
 DEFAULT_PROMPT = (
     "Take this whiteboard photograph and convert it into a beautiful and polished "
     "graphic featuring clear labels and icons. Preserve all the original content, "
@@ -26,144 +28,6 @@ DEFAULT_PROMPT = (
 )
 
 FAL_SUBMIT_URL = "https://queue.fal.run/fal-ai/nano-banana-2/edit"
-
-STYLESHEET = """
-QMainWindow {
-    background: #1e1e2e;
-}
-QWidget {
-    font-family: 'Segoe UI', 'Ubuntu', sans-serif;
-    font-size: 13px;
-    color: #cdd6f4;
-}
-QGroupBox {
-    border: 1px solid #45475a;
-    border-radius: 8px;
-    margin-top: 12px;
-    padding: 16px 12px 12px 12px;
-    background: #313244;
-}
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 12px;
-    padding: 0 6px;
-    color: #89b4fa;
-    font-weight: bold;
-}
-QListWidget {
-    background: #1e1e2e;
-    border: 1px solid #45475a;
-    border-radius: 6px;
-    padding: 4px;
-    outline: none;
-}
-QListWidget::item {
-    padding: 6px 8px;
-    border-radius: 4px;
-}
-QListWidget::item:selected {
-    background: #45475a;
-    color: #cdd6f4;
-}
-QListWidget::item:hover {
-    background: #363647;
-}
-QPushButton {
-    background: #45475a;
-    border: 1px solid #585b70;
-    border-radius: 6px;
-    padding: 8px 18px;
-    color: #cdd6f4;
-    font-weight: 500;
-}
-QPushButton:hover {
-    background: #585b70;
-    border-color: #6c7086;
-}
-QPushButton:pressed {
-    background: #313244;
-}
-QPushButton:disabled {
-    background: #313244;
-    color: #585b70;
-    border-color: #45475a;
-}
-QPushButton#processBtn {
-    background: #89b4fa;
-    color: #1e1e2e;
-    font-weight: bold;
-    font-size: 14px;
-    padding: 10px 28px;
-    border: none;
-}
-QPushButton#processBtn:hover {
-    background: #74c7ec;
-}
-QPushButton#processBtn:pressed {
-    background: #89dceb;
-}
-QPushButton#processBtn:disabled {
-    background: #45475a;
-    color: #585b70;
-}
-QPlainTextEdit {
-    background: #1e1e2e;
-    border: 1px solid #45475a;
-    border-radius: 6px;
-    padding: 8px;
-    color: #cdd6f4;
-    font-size: 12px;
-}
-QLineEdit {
-    background: #1e1e2e;
-    border: 1px solid #45475a;
-    border-radius: 6px;
-    padding: 6px 10px;
-    color: #cdd6f4;
-}
-QLineEdit:focus, QPlainTextEdit:focus {
-    border-color: #89b4fa;
-}
-QComboBox {
-    background: #1e1e2e;
-    border: 1px solid #45475a;
-    border-radius: 6px;
-    padding: 6px 10px;
-    color: #cdd6f4;
-    min-width: 100px;
-}
-QComboBox::drop-down {
-    border: none;
-    padding-right: 8px;
-}
-QComboBox QAbstractItemView {
-    background: #313244;
-    border: 1px solid #45475a;
-    selection-background-color: #45475a;
-    color: #cdd6f4;
-}
-QProgressBar {
-    background: #1e1e2e;
-    border: 1px solid #45475a;
-    border-radius: 6px;
-    height: 22px;
-    text-align: center;
-    color: #cdd6f4;
-}
-QProgressBar::chunk {
-    background: #89b4fa;
-    border-radius: 5px;
-}
-QLabel#statusLabel {
-    color: #a6adc8;
-    font-size: 12px;
-}
-QLabel#titleLabel {
-    font-size: 20px;
-    font-weight: bold;
-    color: #89b4fa;
-}
-"""
 
 
 def load_config():
@@ -190,20 +54,18 @@ def image_to_data_url(path: str) -> str:
 
 class ProcessWorker(QThread):
     progress = pyqtSignal(int, int, str)
-    finished = pyqtSignal(str)
+    finished = pyqtSignal()
     error = pyqtSignal(str, str)
 
-    def __init__(self, image_paths, api_key, prompt, output_format, resolution, output_dir):
+    def __init__(self, image_paths, api_key, prompt, output_format, resolution):
         super().__init__()
         self.image_paths = image_paths
         self.api_key = api_key
         self.prompt = prompt
         self.output_format = output_format
         self.resolution = resolution
-        self.output_dir = Path(output_dir)
 
     def run(self):
-        self.output_dir.mkdir(parents=True, exist_ok=True)
         headers = {
             "Authorization": f"Key {self.api_key}",
             "Content-Type": "application/json",
@@ -211,7 +73,8 @@ class ProcessWorker(QThread):
         total = len(self.image_paths)
 
         for i, img_path in enumerate(self.image_paths):
-            name = Path(img_path).stem
+            p = Path(img_path)
+            name = p.stem
             self.progress.emit(i, total, name)
 
             try:
@@ -237,7 +100,7 @@ class ProcessWorker(QThread):
                 img_resp = requests.get(img_url, timeout=60)
                 img_resp.raise_for_status()
 
-                out_path = self.output_dir / f"{name}_cleaned.{self.output_format}"
+                out_path = p.parent / f"{name}_edited.{self.output_format}"
                 with open(out_path, "wb") as f:
                     f.write(img_resp.content)
 
@@ -253,7 +116,44 @@ class ProcessWorker(QThread):
                 self.error.emit(name, str(e))
 
         self.progress.emit(total, total, "")
-        self.finished.emit(str(self.output_dir))
+        self.finished.emit()
+
+
+class DropListWidget(QListWidget):
+    """QListWidget that accepts drag-and-drop of image files and folders."""
+
+    files_dropped = pyqtSignal(list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+        self.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+
+    def dropEvent(self, event: QDropEvent):
+        paths = []
+        for url in event.mimeData().urls():
+            p = Path(url.toLocalFile())
+            if p.is_dir():
+                for f in sorted(p.iterdir()):
+                    if f.suffix.lower() in IMAGE_EXTS and not f.stem.endswith("_edited"):
+                        paths.append(str(f))
+            elif p.is_file() and p.suffix.lower() in IMAGE_EXTS:
+                paths.append(str(p))
+        if paths:
+            self.files_dropped.emit(paths)
+            event.acceptProposedAction()
 
 
 class ApiKeyDialog(QDialog):
@@ -267,7 +167,7 @@ class ApiKeyDialog(QDialog):
 
         layout.addWidget(QLabel("Enter your Fal AI API key:"))
         hint = QLabel("Get one at fal.ai/dashboard/keys")
-        hint.setStyleSheet("color: #a6adc8; font-size: 11px;")
+        hint.setStyleSheet("color: gray; font-size: 11px;")
         layout.addWidget(hint)
 
         self.entry = QLineEdit()
@@ -320,24 +220,28 @@ class MainWindow(QMainWindow):
         root.setSpacing(12)
 
         title = QLabel("Nano Whiteboard Doctor")
-        title.setObjectName("titleLabel")
+        font = title.font()
+        font.setPointSize(18)
+        font.setBold(True)
+        title.setFont(font)
         root.addWidget(title)
 
         # Main content
         content = QHBoxLayout()
         content.setSpacing(12)
 
-        # Left: image list
-        img_group = QGroupBox("Images")
+        # Left: image list with drag-and-drop
+        img_group = QGroupBox("Images (drag and drop files or folders here)")
         img_layout = QVBoxLayout(img_group)
 
-        self.image_list = QListWidget()
-        self.image_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.image_list = DropListWidget()
+        self.image_list.files_dropped.connect(self._on_files_dropped)
         img_layout.addWidget(self.image_list)
 
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
         for label, slot in [("Add Images", self._add_images),
+                            ("Add Folder", self._add_folder),
                             ("Remove Selected", self._remove_selected),
                             ("Clear All", self._clear_all)]:
             btn = QPushButton(label)
@@ -363,15 +267,9 @@ class MainWindow(QMainWindow):
         self.resolution_combo.setCurrentText(self.config_data.get("resolution", "1K"))
         settings_form.addRow("Resolution:", self.resolution_combo)
 
-        dir_row = QHBoxLayout()
-        self.output_dir_edit = QLineEdit(
-            self.config_data.get("output_dir", str(Path.home() / "Pictures" / "whiteboard-doctor")))
-        browse_btn = QPushButton("...")
-        browse_btn.setFixedWidth(36)
-        browse_btn.clicked.connect(self._pick_output_dir)
-        dir_row.addWidget(self.output_dir_edit)
-        dir_row.addWidget(browse_btn)
-        settings_form.addRow("Output Dir:", dir_row)
+        info_label = QLabel("Edited images are saved next to\nthe originals with an _edited suffix.")
+        info_label.setStyleSheet("color: gray; font-size: 11px;")
+        settings_form.addRow(info_label)
 
         content.addWidget(settings_group, stretch=1)
         root.addLayout(content)
@@ -397,7 +295,10 @@ class MainWindow(QMainWindow):
         bottom.setSpacing(12)
 
         self.process_btn = QPushButton("Process")
-        self.process_btn.setObjectName("processBtn")
+        font = self.process_btn.font()
+        font.setBold(True)
+        font.setPointSize(font.pointSize() + 1)
+        self.process_btn.setFont(font)
         self.process_btn.clicked.connect(self._start_processing)
         bottom.addWidget(self.process_btn)
 
@@ -406,7 +307,6 @@ class MainWindow(QMainWindow):
         bottom.addWidget(self.progress_bar, stretch=1)
 
         self.status_label = QLabel("Ready")
-        self.status_label.setObjectName("statusLabel")
         bottom.addWidget(self.status_label)
 
         root.addLayout(bottom)
@@ -420,6 +320,12 @@ class MainWindow(QMainWindow):
                 save_config(self.config_data)
                 self.status_label.setText("API key saved")
 
+    def _on_files_dropped(self, paths):
+        for p in paths:
+            if p not in self.image_paths:
+                self.image_paths.append(p)
+                self.image_list.addItem(Path(p).name)
+
     def _add_images(self):
         paths, _ = QFileDialog.getOpenFileNames(
             self, "Select whiteboard images", "",
@@ -428,6 +334,16 @@ class MainWindow(QMainWindow):
             if p not in self.image_paths:
                 self.image_paths.append(p)
                 self.image_list.addItem(Path(p).name)
+
+    def _add_folder(self):
+        d = QFileDialog.getExistingDirectory(self, "Select folder with images")
+        if d:
+            folder = Path(d)
+            for f in sorted(folder.iterdir()):
+                fp = str(f)
+                if f.suffix.lower() in IMAGE_EXTS and not f.stem.endswith("_edited") and fp not in self.image_paths:
+                    self.image_paths.append(fp)
+                    self.image_list.addItem(f.name)
 
     def _remove_selected(self):
         for item in reversed(self.image_list.selectedItems()):
@@ -438,11 +354,6 @@ class MainWindow(QMainWindow):
     def _clear_all(self):
         self.image_list.clear()
         self.image_paths.clear()
-
-    def _pick_output_dir(self):
-        d = QFileDialog.getExistingDirectory(self, "Select output directory")
-        if d:
-            self.output_dir_edit.setText(d)
 
     def _start_processing(self):
         if self.worker and self.worker.isRunning():
@@ -457,7 +368,6 @@ class MainWindow(QMainWindow):
 
         self.config_data["output_format"] = self.format_combo.currentText()
         self.config_data["resolution"] = self.resolution_combo.currentText()
-        self.config_data["output_dir"] = self.output_dir_edit.text()
         self.config_data["prompt"] = self.prompt_edit.toPlainText().strip()
         save_config(self.config_data)
 
@@ -471,7 +381,6 @@ class MainWindow(QMainWindow):
             self.config_data.get("prompt", DEFAULT_PROMPT),
             self.config_data.get("output_format", "png"),
             self.config_data.get("resolution", "1K"),
-            self.config_data.get("output_dir", str(Path.home() / "Pictures" / "whiteboard-doctor")),
         )
         self.worker.progress.connect(self._on_progress)
         self.worker.error.connect(self._on_error)
@@ -486,15 +395,15 @@ class MainWindow(QMainWindow):
     def _on_error(self, name, error_msg):
         QMessageBox.critical(self, "Error", f"Failed to process {name}:\n{error_msg}")
 
-    def _on_finished(self, output_dir):
+    def _on_finished(self):
         self.process_btn.setEnabled(True)
         self.status_label.setText("Done!")
-        QMessageBox.information(self, "Complete", f"Processed images saved to:\n{output_dir}")
+        QMessageBox.information(self, "Complete",
+                                "All images processed.\nEdited files saved next to originals with _edited suffix.")
 
 
 def main():
     app = QApplication(sys.argv)
-    app.setStyleSheet(STYLESHEET)
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
