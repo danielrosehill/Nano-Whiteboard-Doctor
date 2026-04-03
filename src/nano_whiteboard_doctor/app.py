@@ -4,16 +4,17 @@
 import base64
 import json
 import sys
+import time
 from pathlib import Path
 
 import requests
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QMimeData
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QAction, QDragEnterEvent, QDropEvent
 from PyQt6.QtWidgets import (
-    QApplication, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
+    QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
     QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget,
     QMainWindow, QMessageBox, QPlainTextEdit, QProgressBar,
-    QPushButton, QVBoxLayout, QWidget,
+    QPushButton, QSpinBox, QVBoxLayout, QWidget,
 )
 
 CONFIG_DIR = Path.home() / ".config" / "nano-whiteboard-doctor"
@@ -27,7 +28,10 @@ DEFAULT_PROMPT = (
     "text, and diagrams but make them clean, well-organized, and professional looking."
 )
 
-FAL_SUBMIT_URL = "https://queue.fal.run/fal-ai/nano-banana-2/edit"
+# Synchronous endpoint - returns results directly
+FAL_SYNC_URL = "https://fal.run/fal-ai/nano-banana-2/edit"
+# Queue endpoint - for fallback/polling
+FAL_QUEUE_URL = "https://queue.fal.run/fal-ai/nano-banana-2/edit"
 
 
 def load_config():
@@ -52,25 +56,86 @@ def image_to_data_url(path: str) -> str:
     return f"data:{mime};base64,{b64}"
 
 
+def build_prompt(base_prompt: str, color: bool, bw: bool, handwritten: bool) -> str:
+    parts = [base_prompt]
+    if color:
+        parts.append("Use vibrant, full color in the output.")
+    if bw:
+        parts.append("Render the output in black and white only.")
+    if handwritten:
+        parts.append("Preserve the handwritten style and character of the original writing.")
+    return " ".join(parts)
+
+
+def call_fal_api(img_path: str, api_key: str, prompt: str,
+                 output_format: str, resolution: str, num_images: int) -> list[dict]:
+    """Call Fal API. Try sync endpoint first, fall back to queue + polling."""
+    headers = {
+        "Authorization": f"Key {api_key}",
+        "Content-Type": "application/json",
+    }
+    data_url = image_to_data_url(img_path)
+    payload = {
+        "prompt": prompt,
+        "image_urls": [data_url],
+        "output_format": output_format,
+        "resolution": resolution,
+        "num_images": num_images,
+    }
+
+    # Try synchronous endpoint first
+    resp = requests.post(FAL_SYNC_URL, headers=headers, json=payload, timeout=300)
+    resp.raise_for_status()
+    result = resp.json()
+
+    # If we got images directly, return them
+    if "images" in result and result["images"]:
+        return result["images"]
+
+    # If we got a queue response, poll for result
+    request_id = result.get("request_id")
+    if not request_id:
+        return []
+
+    result_url = f"{FAL_QUEUE_URL}/requests/{request_id}"
+    status_url = f"{FAL_QUEUE_URL}/requests/{request_id}/status"
+
+    for _ in range(120):  # up to ~4 minutes
+        time.sleep(2)
+        status_resp = requests.get(status_url, headers=headers, timeout=30)
+        status_resp.raise_for_status()
+        status = status_resp.json()
+        if status.get("status") == "COMPLETED":
+            result_resp = requests.get(result_url, headers=headers, timeout=30)
+            result_resp.raise_for_status()
+            return result_resp.json().get("images", [])
+        if status.get("status") in ("FAILED", "CANCELLED"):
+            return []
+
+    return []
+
+
 class ProcessWorker(QThread):
     progress = pyqtSignal(int, int, str)
     finished = pyqtSignal()
     error = pyqtSignal(str, str)
 
-    def __init__(self, image_paths, api_key, prompt, output_format, resolution):
+    def __init__(self, image_paths, api_key, prompt, output_format, resolution, num_images,
+                 color, bw, handwritten):
         super().__init__()
         self.image_paths = image_paths
         self.api_key = api_key
         self.prompt = prompt
         self.output_format = output_format
         self.resolution = resolution
+        self.num_images = num_images
+        self.color = color
+        self.bw = bw
+        self.handwritten = handwritten
 
     def run(self):
-        headers = {
-            "Authorization": f"Key {self.api_key}",
-            "Content-Type": "application/json",
-        }
         total = len(self.image_paths)
+        full_prompt = build_prompt(self.prompt, self.color, self.bw, self.handwritten)
 
         for i, img_path in enumerate(self.image_paths):
             p = Path(img_path)
@@ -78,31 +143,24 @@ class ProcessWorker(QThread):
             self.progress.emit(i, total, name)
 
             try:
-                data_url = image_to_data_url(img_path)
-                payload = {
-                    "prompt": self.prompt,
-                    "image_urls": [data_url],
-                    "output_format": self.output_format,
-                    "resolution": self.resolution,
-                    "sync_mode": True,
-                }
+                images = call_fal_api(
+                    img_path, self.api_key, full_prompt,
+                    self.output_format, self.resolution, self.num_images,
+                )
 
-                resp = requests.post(FAL_SUBMIT_URL, headers=headers, json=payload, timeout=120)
-                resp.raise_for_status()
-                result = resp.json()
-
-                images = result.get("images", [])
                 if not images:
                     self.error.emit(name, "No output image returned")
                     continue
 
-                img_url = images[0]["url"]
-                img_resp = requests.get(img_url, timeout=60)
-                img_resp.raise_for_status()
+                for j, img_data in enumerate(images):
+                    img_url = img_data["url"]
+                    img_resp = requests.get(img_url, timeout=60)
+                    img_resp.raise_for_status()
 
-                out_path = p.parent / f"{name}_edited.{self.output_format}"
-                with open(out_path, "wb") as f:
-                    f.write(img_resp.content)
+                    suffix = f"_edited" if len(images) == 1 else f"_edited_{j + 1}"
+                    out_path = p.parent / f"{name}{suffix}.{self.output_format}"
+                    with open(out_path, "wb") as f:
+                        f.write(img_resp.content)
 
             except requests.exceptions.HTTPError as e:
                 error_body = ""
@@ -184,12 +242,65 @@ class ApiKeyDialog(QDialog):
         return self.entry.text().strip()
 
 
+class SettingsDialog(QDialog):
+    """Dialog for editing the prompt and API key."""
+
+    def __init__(self, config_data, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        self.setMinimumWidth(550)
+        self.config_data = config_data
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        # API key
+        key_group = QGroupBox("API Key")
+        key_layout = QVBoxLayout(key_group)
+        self.key_entry = QLineEdit(config_data.get("api_key", ""))
+        self.key_entry.setEchoMode(QLineEdit.EchoMode.Password)
+        self.key_entry.setPlaceholderText("fal-xxxxxxxxxxxxxxxx")
+        key_layout.addWidget(self.key_entry)
+        hint = QLabel("Get one at fal.ai/dashboard/keys")
+        hint.setStyleSheet("color: gray; font-size: 11px;")
+        key_layout.addWidget(hint)
+        layout.addWidget(key_group)
+
+        # Prompt
+        prompt_group = QGroupBox("Prompt")
+        prompt_layout = QVBoxLayout(prompt_group)
+        self.prompt_edit = QPlainTextEdit()
+        self.prompt_edit.setPlainText(config_data.get("prompt", DEFAULT_PROMPT))
+        self.prompt_edit.setMaximumHeight(120)
+        prompt_layout.addWidget(self.prompt_edit)
+
+        reset_btn = QPushButton("Reset to Default")
+        reset_btn.clicked.connect(lambda: self.prompt_edit.setPlainText(DEFAULT_PROMPT))
+        reset_row = QHBoxLayout()
+        reset_row.addStretch()
+        reset_row.addWidget(reset_btn)
+        prompt_layout.addLayout(reset_row)
+        layout.addWidget(prompt_group)
+
+        # Buttons
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def get_values(self):
+        return {
+            "api_key": self.key_entry.text().strip(),
+            "prompt": self.prompt_edit.toPlainText().strip(),
+        }
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Nano Whiteboard Doctor")
-        self.setMinimumSize(800, 600)
-        self.resize(950, 700)
+        self.setMinimumSize(750, 500)
+        self.resize(900, 600)
 
         self.config_data = load_config()
         self.image_paths = []
@@ -199,18 +310,18 @@ class MainWindow(QMainWindow):
         self._build_menu()
 
         if not self.config_data.get("api_key"):
-            QTimer.singleShot(300, self._prompt_api_key)
+            QTimer.singleShot(300, self._open_settings)
 
     def _build_menu(self):
         menu = self.menuBar()
-        settings = menu.addMenu("Settings")
-        key_action = QAction("Set API Key...", self)
-        key_action.triggered.connect(self._prompt_api_key)
-        settings.addAction(key_action)
-        settings.addSeparator()
+        settings_menu = menu.addMenu("File")
+        settings_action = QAction("Settings...", self)
+        settings_action.triggered.connect(self._open_settings)
+        settings_menu.addAction(settings_action)
+        settings_menu.addSeparator()
         quit_action = QAction("Quit", self)
         quit_action.triggered.connect(self.close)
-        settings.addAction(quit_action)
+        settings_menu.addAction(quit_action)
 
     def _build_ui(self):
         central = QWidget()
@@ -252,43 +363,61 @@ class MainWindow(QMainWindow):
 
         content.addWidget(img_group, stretch=3)
 
-        # Right: settings
-        settings_group = QGroupBox("Settings")
-        settings_form = QFormLayout(settings_group)
-        settings_form.setSpacing(10)
+        # Right: options
+        right = QVBoxLayout()
+        right.setSpacing(12)
+
+        # Output settings
+        output_group = QGroupBox("Output")
+        output_form = QFormLayout(output_group)
+        output_form.setSpacing(8)
 
         self.format_combo = QComboBox()
         self.format_combo.addItems(["png", "jpeg", "webp"])
         self.format_combo.setCurrentText(self.config_data.get("output_format", "png"))
-        settings_form.addRow("Output Format:", self.format_combo)
+        output_form.addRow("Format:", self.format_combo)
 
         self.resolution_combo = QComboBox()
         self.resolution_combo.addItems(["0.5K", "1K", "2K", "4K"])
         self.resolution_combo.setCurrentText(self.config_data.get("resolution", "1K"))
-        settings_form.addRow("Resolution:", self.resolution_combo)
+        output_form.addRow("Resolution:", self.resolution_combo)
+
+        self.num_images_spin = QSpinBox()
+        self.num_images_spin.setRange(1, 4)
+        self.num_images_spin.setValue(self.config_data.get("num_images", 1))
+        output_form.addRow("Variants:", self.num_images_spin)
+
+        right.addWidget(output_group)
+
+        # Style options
+        style_group = QGroupBox("Style")
+        style_layout = QVBoxLayout(style_group)
+
+        self.color_check = QCheckBox("Convert to color")
+        self.color_check.setChecked(self.config_data.get("color", False))
+        style_layout.addWidget(self.color_check)
+
+        self.bw_check = QCheckBox("Convert to black && white")
+        self.bw_check.setChecked(self.config_data.get("bw", False))
+        style_layout.addWidget(self.bw_check)
+
+        self.handwritten_check = QCheckBox("Preserve handwritten style")
+        self.handwritten_check.setChecked(self.config_data.get("handwritten", False))
+        style_layout.addWidget(self.handwritten_check)
+
+        # Make color and B&W mutually exclusive
+        self.color_check.toggled.connect(lambda on: self.bw_check.setChecked(False) if on else None)
+        self.bw_check.toggled.connect(lambda on: self.color_check.setChecked(False) if on else None)
+
+        right.addWidget(style_group)
 
         info_label = QLabel("Edited images are saved next to\nthe originals with an _edited suffix.")
         info_label.setStyleSheet("color: gray; font-size: 11px;")
-        settings_form.addRow(info_label)
+        right.addWidget(info_label)
 
-        content.addWidget(settings_group, stretch=1)
+        right.addStretch()
+        content.addLayout(right, stretch=1)
         root.addLayout(content)
-
-        # Prompt
-        prompt_group = QGroupBox("Prompt")
-        prompt_layout = QVBoxLayout(prompt_group)
-        self.prompt_edit = QPlainTextEdit()
-        self.prompt_edit.setPlainText(self.config_data.get("prompt", DEFAULT_PROMPT))
-        self.prompt_edit.setMaximumHeight(100)
-        prompt_layout.addWidget(self.prompt_edit)
-
-        reset_btn = QPushButton("Reset to Default")
-        reset_btn.clicked.connect(lambda: self.prompt_edit.setPlainText(DEFAULT_PROMPT))
-        reset_row = QHBoxLayout()
-        reset_row.addStretch()
-        reset_row.addWidget(reset_btn)
-        prompt_layout.addLayout(reset_row)
-        root.addWidget(prompt_group)
 
         # Bottom
         bottom = QHBoxLayout()
@@ -311,14 +440,16 @@ class MainWindow(QMainWindow):
 
         root.addLayout(bottom)
 
-    def _prompt_api_key(self):
-        dialog = ApiKeyDialog(self)
+    def _open_settings(self):
+        dialog = SettingsDialog(self.config_data, self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            key = dialog.get_key()
-            if key:
-                self.config_data["api_key"] = key
-                save_config(self.config_data)
-                self.status_label.setText("API key saved")
+            vals = dialog.get_values()
+            if vals["api_key"]:
+                self.config_data["api_key"] = vals["api_key"]
+            if vals["prompt"]:
+                self.config_data["prompt"] = vals["prompt"]
+            save_config(self.config_data)
+            self.status_label.setText("Settings saved")
 
     def _on_files_dropped(self, paths):
         for p in paths:
@@ -359,16 +490,20 @@ class MainWindow(QMainWindow):
         if self.worker and self.worker.isRunning():
             return
         if not self.config_data.get("api_key"):
-            self._prompt_api_key()
+            self._open_settings()
             if not self.config_data.get("api_key"):
                 return
         if not self.image_paths:
             QMessageBox.warning(self, "No images", "Add at least one image first.")
             return
 
+        # Save current UI state
         self.config_data["output_format"] = self.format_combo.currentText()
         self.config_data["resolution"] = self.resolution_combo.currentText()
-        self.config_data["prompt"] = self.prompt_edit.toPlainText().strip()
+        self.config_data["num_images"] = self.num_images_spin.value()
+        self.config_data["color"] = self.color_check.isChecked()
+        self.config_data["bw"] = self.bw_check.isChecked()
+        self.config_data["handwritten"] = self.handwritten_check.isChecked()
         save_config(self.config_data)
 
         self.process_btn.setEnabled(False)
@@ -381,6 +516,10 @@ class MainWindow(QMainWindow):
             self.config_data.get("prompt", DEFAULT_PROMPT),
             self.config_data.get("output_format", "png"),
             self.config_data.get("resolution", "1K"),
+            self.config_data.get("num_images", 1),
+            self.color_check.isChecked(),
+            self.bw_check.isChecked(),
+            self.handwritten_check.isChecked(),
         )
         self.worker.progress.connect(self._on_progress)
         self.worker.error.connect(self._on_error)
