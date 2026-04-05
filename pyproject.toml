@@ -1,6 +1,6 @@
 [project]
 name = "nano-tech-diagrams"
-version = "0.3.0"
+version = "0.3.1"
 description = "Desktop tool for creating and editing tech diagrams using Nano Banana 2 (via Fal AI)"
 authors = [{ name = "Daniel Rosehill", email = "public@danielrosehill.com" }]
 license = { text = "MIT" }
