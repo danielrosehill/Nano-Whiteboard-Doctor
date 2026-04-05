@@ -58,7 +58,7 @@ def save_config(config):
 
 # --- Aspect Ratios ---
 
-ASPECT_RATIOS = ["auto", "1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9", "9:21"]
+ASPECT_RATIOS = ["auto", "21:9", "16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16", "4:1", "1:4", "8:1", "1:8"]
 
 # --- Whiteboard-specific instructions (prepended only in whiteboard mode) ---
 
@@ -465,6 +465,80 @@ DIAGRAM_TYPES = [
      "with boxes for each role/entity connected by lines showing relationships. "
      "Support multiple levels with clear top-down or left-to-right layout.",
      "16:9"),
+
+    # --- Data Visualization ---
+    ("bar_chart", "Bar Chart", "Data Visualization",
+     "Create a bar chart with clearly labeled axes, a descriptive title, and distinct "
+     "colored bars for each category or data series. Include value labels on or above "
+     "each bar. Use a clean grid background with horizontal reference lines. Support "
+     "grouped or stacked bars if multiple series are present. The chart should be "
+     "immediately readable with a clear legend if needed.",
+     "16:9"),
+
+    ("pie_chart", "Pie Chart", "Data Visualization",
+     "Create a pie chart showing proportional segments with distinct colors for each "
+     "slice. Label each slice with its category name and percentage value. Use a clean "
+     "layout with a legend and descriptive title. Optionally pull out or highlight one "
+     "key segment for emphasis. Ensure the color palette provides clear visual "
+     "distinction between adjacent slices.",
+     "1:1"),
+
+    ("line_chart", "Line Chart", "Data Visualization",
+     "Create a line chart with clearly labeled X and Y axes, a descriptive title, and "
+     "smooth or pointed data lines with visible data point markers. Use distinct colors "
+     "for multiple series. Include a clean grid background, legend, and axis labels with "
+     "units. Show trends clearly with appropriate scale and range.",
+     "16:9"),
+
+    ("scatter_plot", "Scatter Plot / Correlation", "Data Visualization",
+     "Create a scatter plot showing the relationship between two variables. Plot data "
+     "points as distinct dots with clearly labeled X and Y axes, units, and a descriptive "
+     "title. Optionally include a trend line or regression line to show correlation "
+     "direction and strength. Use color or shape coding for multiple data groups with "
+     "a clear legend.",
+     "4:3"),
+
+    ("histogram", "Histogram", "Data Visualization",
+     "Create a histogram showing the frequency distribution of a dataset. Use contiguous "
+     "bars (no gaps) with clearly labeled bins on the X axis and frequency counts on the "
+     "Y axis. Include a descriptive title and axis labels. Optionally overlay a "
+     "distribution curve. Use a clean grid background for readability.",
+     "16:9"),
+
+    ("heatmap", "Heatmap", "Data Visualization",
+     "Create a heatmap with a grid of cells colored by intensity value. Include a color "
+     "scale legend showing the value-to-color mapping. Label rows and columns clearly. "
+     "Use a sequential or diverging color palette appropriate to the data. Include a "
+     "descriptive title and optionally show values within each cell.",
+     "1:1"),
+
+    ("treemap", "Treemap", "Data Visualization",
+     "Create a treemap diagram showing hierarchical data as nested rectangles sized "
+     "proportionally to their values. Use distinct colors for top-level categories and "
+     "lighter shades for sub-categories. Label each rectangle with its name and value. "
+     "Include a descriptive title and legend for the color coding.",
+     "16:9"),
+
+    ("funnel_chart", "Funnel Chart", "Data Visualization",
+     "Create a funnel chart showing stages in a process with progressively narrowing "
+     "horizontal bars or trapezoid sections. Label each stage with its name, value, and "
+     "conversion percentage. Use distinct colors for each stage. Include a descriptive "
+     "title. The funnel should clearly show drop-off between stages.",
+     "3:4"),
+
+    ("radar_chart", "Radar / Spider Chart", "Data Visualization",
+     "Create a radar chart (spider chart) with labeled axes radiating from a center point. "
+     "Plot data as a filled polygon connecting values on each axis. Use distinct colors "
+     "and semi-transparent fills for multiple data series. Include axis labels, a scale, "
+     "a legend, and a descriptive title.",
+     "1:1"),
+
+    ("bubble_chart", "Bubble Chart", "Data Visualization",
+     "Create a bubble chart plotting data points as circles where X position, Y position, "
+     "and bubble size each represent a variable. Label axes clearly with units. Use color "
+     "coding for categories with a legend. Include a size reference in the legend. Add a "
+     "descriptive title. Ensure bubbles are visually distinct and not overly overlapping.",
+     "4:3"),
 ]
 
 # Build lookup helpers

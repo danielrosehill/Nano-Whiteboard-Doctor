@@ -73,7 +73,6 @@ def whiteboard_cleanup(
     style: str = "clean_polished",
     dictionary_words: list[str] | None = None,
     output_format: str = "png",
-    resolution: str = "1K",
     aspect_ratio: str = "auto",
 ) -> str:
     """Clean up a whiteboard photo into a polished diagram.
@@ -83,8 +82,7 @@ def whiteboard_cleanup(
         style: Visual style preset key (use list_styles to see options)
         dictionary_words: Words/terms to spell correctly (e.g. ["Kubernetes", "Proxmox"])
         output_format: Output format - png, jpeg, or webp
-        resolution: Output resolution - 0.5K, 1K, 2K, or 4K
-        aspect_ratio: Aspect ratio - auto, 1:1, 4:3, 16:9, etc.
+        aspect_ratio: Aspect ratio - auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16, 4:1, 1:4, 8:1, 1:8
     """
     api_key = _get_api_key()
 
@@ -98,7 +96,7 @@ def whiteboard_cleanup(
 
     images = call_fal_img2img(
         image_path, api_key, prompt,
-        output_format, resolution, 1, aspect_ratio,
+        output_format, "1K", 1, aspect_ratio,
     )
 
     if not images:
@@ -127,7 +125,6 @@ def image_to_image(
     diagram_type: str | None = None,
     dictionary_words: list[str] | None = None,
     output_format: str = "png",
-    resolution: str = "1K",
     aspect_ratio: str = "auto",
 ) -> str:
     """Transform an existing image into a tech diagram.
@@ -141,8 +138,7 @@ def image_to_image(
         diagram_type: Diagram type key (use list_diagram_types to see options)
         dictionary_words: Words/terms to spell correctly
         output_format: Output format - png, jpeg, or webp
-        resolution: Output resolution - 0.5K, 1K, 2K, or 4K
-        aspect_ratio: Aspect ratio - auto, 1:1, 4:3, 16:9, etc.
+        aspect_ratio: Aspect ratio - auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16, 4:1, 1:4, 8:1, 1:8
     """
     api_key = _get_api_key()
 
@@ -167,7 +163,7 @@ def image_to_image(
 
     images = call_fal_img2img(
         image_path, api_key, full_prompt,
-        output_format, resolution, 1, aspect_ratio,
+        output_format, "1K", 1, aspect_ratio,
     )
 
     if not images:
@@ -202,7 +198,6 @@ def text_to_image(
     output_dir: str | None = None,
     output_name: str = "generated_diagram",
     output_format: str = "png",
-    resolution: str = "1K",
     aspect_ratio: str = "auto",
 ) -> str:
     """Generate a tech diagram from a text description (no input image needed).
@@ -216,8 +211,7 @@ def text_to_image(
         output_dir: Directory to save output (default: ~/Pictures/nano-tech-diagrams)
         output_name: Filename prefix for the output
         output_format: Output format - png, jpeg, or webp
-        resolution: Output resolution - 0.5K, 1K, 2K, or 4K
-        aspect_ratio: Aspect ratio - auto, 1:1, 4:3, 16:9, etc.
+        aspect_ratio: Aspect ratio - auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16, 4:1, 1:4, 8:1, 1:8
     """
     api_key = _get_api_key()
 
@@ -241,7 +235,7 @@ def text_to_image(
 
     images = call_fal_txt2img(
         api_key, full_prompt,
-        output_format, resolution, 1, aspect_ratio,
+        output_format, "1K", 1, aspect_ratio,
     )
 
     if not images:
