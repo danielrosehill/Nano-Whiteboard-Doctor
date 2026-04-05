@@ -1,7 +1,7 @@
 [project]
-name = "whiteboard-makeover"
-version = "0.2.0"
-description = "Desktop GUI tool that cleans up whiteboard photos using Fal AI Nano Banana 2"
+name = "nano-tech-diagrams"
+version = "0.3.0"
+description = "Desktop tool for creating and editing tech diagrams using Nano Banana 2 (via Fal AI)"
 authors = [{ name = "Daniel Rosehill", email = "public@danielrosehill.com" }]
 license = { text = "MIT" }
 readme = "README.md"
@@ -11,8 +11,12 @@ dependencies = [
     "pyqt6>=6.11.0",
 ]
 
+[project.optional-dependencies]
+mcp = ["mcp>=1.0.0"]
+
 [project.scripts]
-whiteboard-makeover = "whiteboard_makeover.cli:cli_main"
+nano-tech-diagrams = "nano_tech_diagrams.cli:cli_main"
+nano-tech-diagrams-mcp = "nano_tech_diagrams.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PKG_NAME="whiteboard-makeover"
-VERSION="0.2.0"
+PKG_NAME="nano-tech-diagrams"
+VERSION="0.3.0"
 ARCH="all"
 BUILD_DIR="$(mktemp -d)"
 INSTALL_PREFIX="opt/${PKG_NAME}"
@@ -28,20 +28,20 @@ find "${BUILD_DIR}/${INSTALL_PREFIX}/venv/bin" -type f -exec \
 # Create launcher script
 cat > "${BUILD_DIR}/usr/bin/${PKG_NAME}" << 'LAUNCHER'
 #!/usr/bin/env bash
-exec /opt/whiteboard-makeover/venv/bin/python -m whiteboard_makeover "$@"
+exec /opt/nano-tech-diagrams/venv/bin/python -m nano_tech_diagrams "$@"
 LAUNCHER
 chmod 755 "${BUILD_DIR}/usr/bin/${PKG_NAME}"
 
 # Create .desktop file
 cat > "${BUILD_DIR}/usr/share/applications/${PKG_NAME}.desktop" << DESKTOP
 [Desktop Entry]
-Name=Whiteboard Makeover
-Comment=Clean up whiteboard photos with AI
+Name=Nano Tech Diagrams
+Comment=Create and edit tech diagrams with AI (Nano Banana 2 via Fal AI)
 Exec=${PKG_NAME}
 Terminal=false
 Type=Application
-Categories=Graphics;Utility;
-Keywords=whiteboard;ai;image;cleanup;makeover;
+Categories=Graphics;Utility;Development;
+Keywords=diagram;ai;image;whiteboard;tech;flowchart;network;architecture;
 DESKTOP
 
 # Calculate installed size (in KB)
@@ -56,10 +56,11 @@ Priority: optional
 Architecture: ${ARCH}
 Installed-Size: ${INSTALLED_SIZE}
 Maintainer: Daniel Rosehill <public@danielrosehill.com>
-Description: Desktop GUI tool that cleans up whiteboard photos using Fal AI
- Whiteboard Makeover transforms messy whiteboard photographs into clean,
- polished graphics using the Fal AI Nano Banana 2 image-to-image model.
- Supports single and batch image processing with a modern PyQt6 interface.
+Description: Desktop tool for creating and editing tech diagrams using AI
+ Nano Tech Diagrams creates and edits tech diagrams using the Nano Banana 2
+ model (via Fal AI). Supports whiteboard cleanup, image-to-image transformation,
+ and text-to-image generation with 24 visual styles and 18 diagram types.
+ Features a modern PyQt6 GUI, CLI, and MCP server interface.
 CONTROL
 
 # Build the package
