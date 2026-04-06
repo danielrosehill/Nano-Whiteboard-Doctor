@@ -1,9 +1,8 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.local
 __pycache__/
 *.pyc
-.env
-*.egg-info/
-dist/
-build/
-venv/
-.venv/
 *.deb

@@ -1,8 +1,9 @@
-# Whiteboard Makeover
+# Nano Tech Diagrams
 
-A desktop GUI tool that transforms messy whiteboard photos into clean, polished graphics using [Fal AI's Nano Banana 2](https://fal.ai/models/fal-ai/nano-banana-2/edit) image-to-image model.
+A tool for creating and editing tech diagrams using [Fal AI's Nano Banana 2](https://fal.ai/models/fal-ai/nano-banana-2) model. Available as a desktop GUI (Python/PyQt6), CLI, MCP server (Python), and npm package with MCP server (TypeScript).
 
 ![Python](https://img.shields.io/badge/python-3.10+-blue)
+![npm](https://img.shields.io/badge/npm-nano--tech--diagrams-red)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![PyQt6](https://img.shields.io/badge/GUI-PyQt6-41cd52)
 
@@ -27,32 +28,106 @@ More samples available in the [Sample-Whiteboards](https://github.com/danielrose
 
 ## What It Does
 
-Take a photo of your messy whiteboard and Whiteboard Makeover will:
-- Clean up handwriting and sketches
-- Add polished labels and icons
-- Produce a professional-looking diagram
-- Apply any of **24 built-in style presets** or a fully custom prompt
+- **Text-to-image**: Generate tech diagrams from text descriptions
+- **Image-to-image**: Transform existing images into styled diagrams
+- **Whiteboard cleanup**: Clean up whiteboard photos into polished graphics
+- **28+ style presets** across 6 categories
+- **20 diagram type presets** (network, flowchart, mind map, K8s cluster, etc.)
 
-Supports **single image** or **batch processing** of multiple whiteboard photos at once.
+## MCP Server (npm)
 
-## Features
+### Install via Claude Code
 
-- **24 style presets** across 5 categories (Professional, Creative, Technical, Retro & Fun, Language)
-- **Word dictionary** -- double-click any input image to add terms the AI should spell correctly
-- **Click-to-enlarge** result thumbnails with full-size viewer
-- **Send back for touchups** -- re-process from the enlarged view (creates versioned outputs)
-- **Animated processing indicator** so you know it's working
-- **Drag-and-drop** images or folders (Wayland-compatible)
-- **CLI mode** for batch processing from the terminal
-- **Help page** (Help > How to Use) documenting all features
+```bash
+claude mcp add nano-tech-diagrams -e FAL_KEY=your-fal-api-key -- npx -y nano-tech-diagrams
+```
 
-## Screenshot
+### Manual JSON config
+
+Add to your Claude Code MCP settings (`~/.claude/settings.json` or project `.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "nano-tech-diagrams": {
+      "command": "npx",
+      "args": ["-y", "nano-tech-diagrams"],
+      "env": {
+        "FAL_KEY": "your-fal-api-key"
+      }
+    }
+  }
+}
+```
+
+### MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `list_styles` | List all 28+ visual style presets |
+| `list_diagram_types` | List all diagram type presets |
+| `whiteboard_cleanup` | Clean up a whiteboard photo into a polished diagram |
+| `image_to_image` | Transform an image into a styled tech diagram |
+| `text_to_image` | Generate a diagram from a text description |
+
+### Defaults
+
+- **Model**: Nano Banana 2 (baked in)
+- **Resolution**: 1K
+- **Reasoning**: Minimal
+- **Output format**: PNG
+- **Aspect ratio**: auto (configurable per call)
+
+## Desktop GUI (Python)
+
+### Install from source
+
+```bash
+git clone https://github.com/danielrosehill/Nano-Whiteboard-Doctor.git
+cd Nano-Whiteboard-Doctor
+uv sync
+uv run nano-tech-diagrams
+```
+
+### Install from .deb
+
+Download the `.deb` from [Releases](https://github.com/danielrosehill/Nano-Whiteboard-Doctor/releases):
+
+```bash
+sudo dpkg -i nano-tech-diagrams_0.3.0_all.deb
+nano-tech-diagrams
+```
+
+### GUI Usage
+
+1. Click **Add Images** or drag and drop whiteboard photos
+2. (Optional) **Double-click** an image to add a word dictionary for tricky terms
+3. Choose a **Style Preset** from the dropdown (or write a custom prompt)
+4. (Optional) Adjust output format, resolution, and aspect ratio
+5. Click **Process**
+6. **Click any result thumbnail** to view it full-size
+7. From the enlarged view, click **Send Back for Touchups** to re-process
 
 ![GUI](screenshot/gui.png)
 
-## Style Presets
+## CLI
 
-24 presets across 5 categories. Each preset applies a distinct visual treatment while preserving all original whiteboard content.
+```bash
+# Text-to-image
+nano-tech-diagrams --text "Kubernetes cluster with 3 worker nodes" --style blueprint --diagram-type kubernetes_cluster
+
+# Image-to-image
+nano-tech-diagrams photo.jpg --style corporate_clean
+
+# Whiteboard cleanup
+nano-tech-diagrams whiteboard.jpg --whiteboard --style clean_polished
+
+# List presets
+nano-tech-diagrams --list-styles
+nano-tech-diagrams --list-diagram-types
+```
+
+## Style Presets
 
 ### Professional
 
@@ -108,56 +183,23 @@ Supports **single image** or **batch processing** of multiple whiteboard photos 
 | Bilingual Hebrew | English + Hebrew labels side by side |
 | Translated Hebrew | Fully translated to Hebrew with RTL layout |
 
-## Install
+## Diagram Types
 
-### Option A: Debian package (.deb)
-
-Download the `.deb` from [Releases](https://github.com/danielrosehill/Nano-Whiteboard-Doctor/releases) and install:
-
-```bash
-sudo dpkg -i whiteboard-makeover_0.2.0_all.deb
-whiteboard-makeover
-```
-
-### Option B: Run from source with uv
-
-```bash
-git clone https://github.com/danielrosehill/Nano-Whiteboard-Doctor.git
-cd Nano-Whiteboard-Doctor
-uv sync
-uv run whiteboard-makeover
-```
-
-### Get a Fal AI API key
-
-Sign up at [fal.ai](https://fal.ai) and grab your API key from the dashboard. On first run, you'll be prompted to enter it. The key is saved locally in `~/.config/whiteboard-makeover/config.json`.
-
-## Usage
-
-1. Click **Add Images** or drag and drop whiteboard photos
-2. (Optional) **Double-click** an image to add a word dictionary for tricky terms
-3. Choose a **Style Preset** from the dropdown (or write a custom prompt)
-4. (Optional) Adjust output format, resolution, and aspect ratio
-5. Click **Process** -- an animated indicator shows progress
-6. **Click any result thumbnail** to view it full-size
-7. From the enlarged view, click **Send Back for Touchups** to re-process
+| Category | Types |
+|----------|-------|
+| Infrastructure | Network Diagram, Cloud Architecture, Kubernetes Cluster, Server Rack |
+| Software | System Architecture, Microservices Map, API Architecture, Database Schema |
+| Process | Flowchart, Decision Tree, Sequence Diagram, State Machine, CI/CD Pipeline |
+| Conceptual | Mind Map, Wireframe, Gantt Chart, Comparison Table, Org Chart |
 
 ## Configuration
 
-- **API Key**: Stored in `~/.config/whiteboard-makeover/config.json`
+- **API Key**: Set `FAL_KEY` env var, or stored in `~/.config/nano-tech-diagrams/config.json`
 - **Output Format**: PNG (default), JPEG, or WebP
 - **Resolution**: 0.5K, 1K (default), 2K, or 4K
-- **Aspect Ratio**: Auto (default), 1:1, 4:3, 16:9, and more
+- **Aspect Ratio**: auto (default), 1:1, 4:3, 3:4, 16:9, 9:16, 3:2, 2:3, 21:9, 9:21
 
-Existing config from `~/.config/nano-whiteboard-doctor/` is automatically migrated on first run.
-
-## Building the .deb
-
-```bash
-./build-deb.sh
-```
-
-Requires `uv`, `dpkg-deb`, and `fakeroot`.
+Get a Fal AI API key at [fal.ai](https://fal.ai).
 
 ## License
 

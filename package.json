@@ -1,0 +1,49 @@
+{
+  "name": "nano-tech-diagrams",
+  "version": "0.4.0",
+  "description": "MCP server and library for creating and editing tech diagrams using Nano Banana 2 (via Fal AI). Supports text-to-image, image-to-image, whiteboard cleanup, and 28+ style presets.",
+  "author": "Daniel Rosehill <public@danielrosehill.com>",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "nano-tech-diagrams-mcp": "dist/mcp-server.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "diagrams",
+    "tech-diagrams",
+    "whiteboard",
+    "fal-ai",
+    "nano-banana",
+    "image-generation",
+    "text-to-image",
+    "image-to-image",
+    "ai"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danielrosehill/Nano-Whiteboard-Doctor"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
